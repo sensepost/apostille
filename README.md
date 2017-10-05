@@ -14,3 +14,10 @@ each with the corresponding PrivateKey.
 Automatically generated "parents" of the chain will be named by their CN.
 
 Directly cloned items from the source KeyStore will be named by their alias.
+
+Run it like:
+
+	mvn package
+	java -jar target/apostille-1.0-SNAPSHOT.jar srckeystore.jks dstkeystore.jks kspassword keypassword
+
+
