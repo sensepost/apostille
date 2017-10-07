@@ -23,9 +23,12 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.DSAParams;
+import java.security.interfaces.DSAPublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.AlgorithmParameterSpec;
+import java.security.spec.DSAParameterSpec;
 import java.security.spec.RSAKeyGenParameterSpec;
 import java.util.Date;
 import java.util.Enumeration;
@@ -163,6 +166,10 @@ public class Main {
 		} else if ("EC".equals(keyAlg)) {
 			ECPublicKey ecKey = (ECPublicKey) pubKey;
 			params = ecKey.getParams();
+		} else if ("DSA".equals(keyAlg)) {
+			DSAPublicKey dsaKey = (DSAPublicKey) pubKey;
+			DSAParams p = dsaKey.getParams();
+			params = new DSAParameterSpec(p.getP(), p.getQ(), p.getG());
 		} else {
 			throw new UnsupportedOperationException("No support for " + keyAlg);
 		}
