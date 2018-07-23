@@ -298,7 +298,6 @@ public class Main {
 			w.writeObject(certs[i]);
 			w.flush();
 		}
-		w.close();
 	}
 
 	private static class SingleX509KeyManager extends X509ExtendedKeyManager {
@@ -392,7 +391,7 @@ public class Main {
 			dstKs.load(null, ksp);
 		}
 
-		try (Writer w = new OutputStreamWriter(System.out)) {
+		try (Writer out = new OutputStreamWriter(System.out)) {
 			if (!src.exists()) {
 				int c = args[0].indexOf(':');
 				if (c > 0) {
@@ -405,7 +404,7 @@ public class Main {
 					String alias = getCN(certs[0].getSubjectX500Principal());
 					X509KeyManager km = cloneCertificates(dstKs, alias, certs, kp);
 
-					outputKeyAndCertificate(alias, km, w);
+					outputKeyAndCertificate(alias, km, out);
 				} else {
 					System.err.println("Keystore " + src + " not found, and it doesn't look like a host:port");
 				}
@@ -425,7 +424,8 @@ public class Main {
 						}
 					}
 					X509KeyManager km = cloneCertificates(dstKs, alias, certs, kp);
-					outputKeyAndCertificate(alias, km, w);
+					certs = km.getCertificateChain(alias);
+					outputKeyAndCertificate(alias, km, out);
 				}
 			}
 		}
