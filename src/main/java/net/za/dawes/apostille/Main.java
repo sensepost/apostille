@@ -1,6 +1,5 @@
 package net.za.dawes.apostille;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -33,8 +32,14 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.DSAParameterSpec;
 import java.security.spec.RSAKeyGenParameterSpec;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.net.ssl.SSLContext;
@@ -55,12 +60,11 @@ import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.IETFUtils;
-import org.bouncycastle.cert.CertIOException;
+import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.jce.provider.AnnotatedException;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -68,123 +72,161 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 public class Main {
 
-	public static X509KeyManager cloneCertificates(KeyStore ks, String alias, X509Certificate[] certs,
-			char[] keyPassword) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, KeyStoreException,
-			CertificateException {
-		if (certs == null || certs.length == 0)
-			throw new NullPointerException("Certs[] cannot be null or zero-length!");
+	private KeyStore keystore;
+	private char[] keyPass;
 
-		PrivateKey caKey = null;
-
-		X509Certificate[] myCerts = new X509Certificate[certs.length];
-		try {
-			KeyPair keyPair = null;
-			Certificate[] chain = null;
-			for (int i = certs.length - 1; i >= 0; i--) {
-				// generate a key pair that matches the parameters of the
-				// certificates public key
-				keyPair = generateKeyPair(certs[i].getPublicKey());
-
-				Date startDate = certs[i].getNotBefore();
-				Date expiryDate = certs[i].getNotAfter();
-				BigInteger serialNumber = certs[i].getSerialNumber();
-				X500Principal subject = certs[i].getSubjectX500Principal();
-				X500Principal issuer = certs[i].getIssuerX500Principal();
-
-				if (caKey == null) {
-					if (!issuer.equals(subject)) {
-						try {
-							String caCN = getCN(issuer);
-							// Do we already have a private key for the issuer?
-							caKey = (PrivateKey) ks.getKey(caCN, keyPassword);
-							if (caKey == null) {
-								// Can we find the issuer details in the local
-								// trust store?
-								X509Certificate caCert = getCaCertificate(caCN);
-								if (caCert != null) {
-									// found issuer details, create a new cert
-									// for the issuer and add it to the keystore
-									X509KeyManager caKm = cloneCertificates(ks, null, new X509Certificate[] { caCert },
-											keyPassword);
-									caKey = caKm.getPrivateKey(caCN);
-								}
-							}
-							if (caKey == null) {
-								// We can't find the right details, let's make
-								// this a self-signed cert instead of failing
-								System.err.println("WARNING: Cannot find certificate details for '" + issuer
-										+ "', self-signing using '" + subject + "'");
-								issuer = subject;
-								caKey = keyPair.getPrivate();
-							}
-						} catch (UnrecoverableKeyException e) {
-							throw new CertificateException(e);
-						}
-					} else {
-						caKey = keyPair.getPrivate();
-					}
-				}
-
-				X509v3CertificateBuilder generator = new JcaX509v3CertificateBuilder(issuer, serialNumber, startDate,
-						expiryDate, subject, keyPair.getPublic());
-
-				Set<String> criticalExtensionOids = certs[i].getCriticalExtensionOIDs();
-				for (String oid : criticalExtensionOids) {
-					byte[] ext = certs[i].getExtensionValue(oid);
-					ASN1Primitive p = getObject(oid, ext);
-					generator.addExtension(new ASN1ObjectIdentifier(oid), true, p);
-				}
-				Set<String> nonCriticalExtensionOids = certs[i].getNonCriticalExtensionOIDs();
-				for (String oid : nonCriticalExtensionOids) {
-					byte[] ext = certs[i].getExtensionValue(oid);
-					ASN1Primitive p = getObject(oid, ext);
-					generator.addExtension(new ASN1ObjectIdentifier(oid), false, p);
-				}
-
-				X509Certificate cert;
-				try {
-					cert = signCertificate(generator, caKey, certs[i].getSigAlgName());
-				} catch (OperatorCreationException e) {
-					throw new CertificateException(e);
-				}
-				caKey = keyPair.getPrivate();
-
-				myCerts[i] = cert;
-
-				chain = new Certificate[certs.length - i];
-				System.arraycopy(myCerts, i, chain, 0, chain.length);
-
-				String cn = getCN(cert.getSubjectX500Principal());
-				ks.setKeyEntry(alias != null ? alias : cn, keyPair.getPrivate(), keyPassword, chain);
-			}
-			if (chain != null)
-				return new SingleX509KeyManager(alias, keyPair.getPrivate(), chain);
-		} catch (RuntimeException | AnnotatedException | CertIOException e) {
-			throw new CertificateException(e);
-		}
-		throw new RuntimeException("Should not be able to get here!");
+	private Main(KeyStore keystore, char[] keyPass) {
+		if (keystore == null)
+			throw new NullPointerException("keystore");
+		this.keystore = keystore;
+		this.keyPass = keyPass;
 	}
 
-	private static X509Certificate getCaCertificate(String cn) throws NoSuchAlgorithmException, KeyStoreException {
+	private X509KeyManager cloneCertificates(String alias,
+			List<X509Certificate> certs) throws NoSuchAlgorithmException,
+			InvalidAlgorithmParameterException, KeyStoreException,
+			CertificateException, UnrecoverableKeyException {
+		if (certs == null || certs.size() == 0)
+			throw new NullPointerException(
+					"Certs cannot be null or zero-length!");
+
+		if (keystore.containsAlias(alias) && keystore.isKeyEntry(alias))
+			return new SingleX509KeyManager(alias, keystore, keyPass);
+
+		X509Certificate cert = certs.get(0);
+
+		X500Principal subject = cert.getSubjectX500Principal();
+		X500Principal issuer = cert.getIssuerX500Principal();
+
+		X509KeyManager caKm = null;
+
+		if (!issuer.equals(subject)) {
+			String caDN = getDN(issuer);
+			if (certs.size() > 1) {
+				caKm = cloneCertificates(caDN, certs.subList(1, certs.size()));
+			} else {
+				caKm = getCAKeyManager(caDN);
+			}
+			if (caKm == null) {
+				System.err
+						.println("WARNING: Cannot find certificate details for '"
+								+ caDN
+								+ ", will self-sign instead.\n"
+								+ "If this is not what you want, find the CA certificate for '"
+								+ caDN
+								+ "', and add it to the keystore passed as a parameter on the command line");
+				// FIXME: Figure out a way to construct a fake
+				// CA certificate here, based on the issuer name
+				// and other details in the certificate
+			}
+		}
+
+		// generate a key pair that matches the parameters of the
+		// certificates public key
+		KeyPair keyPair = generateKeyPair(cert.getPublicKey());
+
+		X509KeyManager km = copyAndSign(cert, keyPair, caKm);
+		keystore.setKeyEntry(alias, keyPair.getPrivate(), keyPass,
+				km.getCertificateChain(alias));
+		return km;
+	}
+
+	private X509KeyManager copyAndSign(X509Certificate cert, KeyPair keyPair,
+			X509KeyManager caKm) throws CertificateException {
+		try {
+			Date startDate = cert.getNotBefore();
+			Date expiryDate = cert.getNotAfter();
+			BigInteger serialNumber = cert.getSerialNumber();
+			X500Principal subject = cert.getSubjectX500Principal();
+			X500Principal issuer = caKm == null ? subject : cert
+					.getIssuerX500Principal();
+
+			X509v3CertificateBuilder generator = new JcaX509v3CertificateBuilder(
+					issuer, serialNumber, startDate, expiryDate, subject,
+					keyPair.getPublic());
+
+			Set<Extension> extensions = getExtensions(cert);
+			for (Extension extension : extensions) {
+				generator.addExtension(extension);
+			}
+			
+			Certificate[] caChain = caKm == null ? new Certificate[0] : caKm
+					.getCertificateChain(null);
+			Certificate[] chain = new Certificate[caChain.length + 1];
+			System.arraycopy(caChain, 0, chain, 1, caChain.length);
+
+			PrivateKey caKey = caKm == null ? keyPair.getPrivate() : caKm
+					.getPrivateKey(null);
+
+			chain[0] = signCertificate(generator, caKey, cert.getSigAlgName());
+
+			String alias = getDN(subject);
+
+			return new SingleX509KeyManager(alias, keyPair.getPrivate(), chain);
+		} catch (Exception e) {
+			throw new CertificateException(e);
+		}
+	}
+
+	private Set<Extension> getExtensions(X509Certificate cert) {
+		Set<Extension> extensions = new LinkedHashSet<>();
+		Set<String> criticalExtensionOids = cert.getCriticalExtensionOIDs();
+		for (String oid : criticalExtensionOids) {
+			byte[] ext = cert.getExtensionValue(oid);
+			extensions.add(new Extension(new ASN1ObjectIdentifier(oid), true, ext));
+		}
+		Set<String> nonCriticalExtensionOids = cert
+				.getNonCriticalExtensionOIDs();
+		for (String oid : nonCriticalExtensionOids) {
+			byte[] ext = cert.getExtensionValue(oid);
+			extensions.add(new Extension(new ASN1ObjectIdentifier(oid), false, ext));
+		}
+		return extensions;
+	}
+
+	private X509KeyManager getCAKeyManager(String caCN)
+			throws CertificateException {
+		// is the certificate already in the keystore?
+		try {
+			if (keystore.containsAlias(caCN) && keystore.isKeyEntry(caCN)) {
+				return new SingleX509KeyManager(caCN, keystore, keyPass);
+			} else {
+				List<X509Certificate> caCert = getCaCertificate(keystore, caCN);
+				if (caCert != null) {
+					return cloneCertificates(caCN, caCert);
+				}
+				caCert = getCaCertificate(null, caCN);
+				if (caCert != null) {
+					return cloneCertificates(caCN, caCert);
+				}
+				return null;
+			}
+		} catch (UnrecoverableKeyException | KeyStoreException
+				| NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
+			throw new CertificateException(e);
+		}
+	}
+
+	private List<X509Certificate> getCaCertificate(KeyStore keystore, String dn)
+			throws NoSuchAlgorithmException, KeyStoreException {
 		TrustManagerFactory trustManagerFactory = TrustManagerFactory
 				.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-		trustManagerFactory.init((KeyStore) null);
+		trustManagerFactory.init(keystore);
 		TrustManager[] tms = trustManagerFactory.getTrustManagers();
 		for (TrustManager tm : tms) {
-			X509Certificate[] certs = ((X509TrustManager) tm).getAcceptedIssuers();
+			X509Certificate[] certs = ((X509TrustManager) tm)
+					.getAcceptedIssuers();
 			for (X509Certificate cert : certs) {
-				if (cn.equals(getCN(cert.getSubjectX500Principal()))) {
-					return cert;
+				if (dn.equals(getDN(cert.getSubjectX500Principal()))) {
+					return Arrays.asList(new X509Certificate[] { cert });
 				}
 			}
 		}
 		return null;
 	}
 
-	private static String getCN(X500Principal principal) {
-		X500Name x500Name = new X500Name(principal.getName());
-		RDN cn = x500Name.getRDNs()[0];
-		return IETFUtils.valueToString(cn.getFirst().getValue());
+	private static String getDN(X500Principal principal) {
+		return principal.getName(X500Principal.RFC1779);
 	}
 
 	private static KeyPair generateKeyPair(PublicKey pubKey)
@@ -193,7 +235,8 @@ public class Main {
 		AlgorithmParameterSpec params = null;
 		if ("RSA".equals(keyAlg)) {
 			RSAPublicKey rsaKey = (RSAPublicKey) pubKey;
-			params = new RSAKeyGenParameterSpec(rsaKey.getModulus().bitLength(), rsaKey.getPublicExponent());
+			params = new RSAKeyGenParameterSpec(
+					rsaKey.getModulus().bitLength(), rsaKey.getPublicExponent());
 		} else if ("EC".equals(keyAlg)) {
 			ECPublicKey ecKey = (ECPublicKey) pubKey;
 			params = ecKey.getParams();
@@ -210,16 +253,18 @@ public class Main {
 		return keyGen.generateKeyPair();
 	}
 
-	public static final String PROVIDER_NAME = BouncyCastleProvider.PROVIDER_NAME;
-
-	private static X509Certificate signCertificate(X509v3CertificateBuilder certificateBuilder, PrivateKey privateKey,
-			String signatureAlgorithm) throws CertificateException, OperatorCreationException {
-		ContentSigner signer = new JcaContentSignerBuilder(signatureAlgorithm).build(privateKey);
-		X509Certificate cert = new JcaX509CertificateConverter().getCertificate(certificateBuilder.build(signer));
-		return cert;
+	private X509Certificate signCertificate(
+			X509v3CertificateBuilder certificateBuilder, PrivateKey privateKey,
+			String signatureAlgorithm) throws CertificateException,
+			OperatorCreationException {
+		ContentSigner signer = new JcaContentSignerBuilder(signatureAlgorithm)
+				.build(privateKey);
+		return new JcaX509CertificateConverter()
+				.getCertificate(certificateBuilder.build(signer));
 	}
 
-	private static ASN1Primitive getObject(String oid, byte[] ext) throws AnnotatedException {
+	private static ASN1Primitive getObject(String oid, byte[] ext)
+			throws AnnotatedException {
 		try {
 			ASN1InputStream aIn = new ASN1InputStream(ext);
 			ASN1OctetString octs = (ASN1OctetString) aIn.readObject();
@@ -230,19 +275,14 @@ public class Main {
 			aIn.close();
 			return p;
 		} catch (Exception e) {
-			throw new AnnotatedException("exception processing extension " + oid, e);
+			throw new AnnotatedException("exception processing extension "
+					+ oid, e);
 		}
 	}
 
-	public static X509Certificate certFromDer(byte[] der) throws CertificateException {
-		InputStream is = new ByteArrayInputStream(der);
-		CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-		X509Certificate cert = (X509Certificate) certFactory.generateCertificate(is);
-		return cert;
-	}
-
-	public static X509Certificate[] certsFromServer(String host, int port)
-			throws IOException, UnknownHostException, NoSuchAlgorithmException, KeyManagementException {
+	private static List<X509Certificate> certsFromServer(String host, int port)
+			throws IOException, UnknownHostException, NoSuchAlgorithmException,
+			KeyManagementException {
 		SSLContext sslContext = SSLContext.getInstance("TLS");
 		LoggingTrustManager tm = new LoggingTrustManager();
 		sslContext.init(null, new TrustManager[] { tm }, null);
@@ -258,17 +298,38 @@ public class Main {
 		}
 		if (tm.certs == null)
 			throw new RuntimeException("Couldn't get the certs");
-		return tm.certs;
+		return Arrays.asList(tm.certs);
+	}
+
+	private static List<X509Certificate> certsFromStream(InputStream in)
+			throws IOException, CertificateException {
+		CertificateFactory fact = CertificateFactory.getInstance("X.509");
+		Collection<? extends Certificate> certs = fact.generateCertificates(in);
+		List<X509Certificate> ret = new ArrayList<>();
+		Iterator<? extends Certificate> it = certs.iterator();
+		while (it.hasNext()) {
+			Certificate cert = it.next();
+			if (cert instanceof X509Certificate) {
+				X509Certificate xcert = (X509Certificate) cert;
+				System.err.println(xcert.getSubjectX500Principal() + " issued "
+						+ xcert.getNotBefore());
+				ret.add((X509Certificate) cert);
+			}
+		}
+
+		return ret;
 	}
 
 	private static class LoggingTrustManager implements X509TrustManager {
 
 		X509Certificate[] certs;
 
-		public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+		public void checkClientTrusted(X509Certificate[] chain, String authType)
+				throws CertificateException {
 		}
 
-		public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+		public void checkServerTrusted(X509Certificate[] chain, String authType)
+				throws CertificateException {
 			certs = new X509Certificate[chain.length];
 			System.arraycopy(chain, 0, certs, 0, chain.length);
 		}
@@ -278,23 +339,18 @@ public class Main {
 		}
 	};
 
-	private static X509Certificate[] copy(Certificate[] certs) {
-		if (certs == null)
-			return null;
-		X509Certificate[] copy = new X509Certificate[certs.length];
-		System.arraycopy(certs, 0, copy, 0, certs.length);
-		return copy;
-	}
-
-	private static void outputKeyAndCertificate(String alias, X509KeyManager km, Writer out) throws IOException {
+	private static void outputKeyAndCertificate(String alias,
+			X509KeyManager km, Writer out) throws IOException {
 		JcaPEMWriter w = new JcaPEMWriter(out);
 		out.write("Key for " + alias + "\n");
 		w.writeObject(km.getPrivateKey(alias));
 		w.flush();
 		X509Certificate[] certs = km.getCertificateChain(alias);
 		for (int i = certs.length - 1; i >= 0; i--) {
-			out.write("Certificate " + i + ": Subject = " + certs[i].getSubjectX500Principal() + "\n");
-			out.write("Certificate " + i + ": Issuer  = " + certs[i].getIssuerX500Principal() + "\n");
+			out.write("Certificate " + i + ": Subject = "
+					+ certs[i].getSubjectX500Principal() + "\n");
+			out.write("Certificate " + i + ": Issuer  = "
+					+ certs[i].getIssuerX500Principal() + "\n");
 			w.writeObject(certs[i]);
 			w.flush();
 		}
@@ -308,36 +364,40 @@ public class Main {
 
 		private X509Certificate[] certs;
 
-		public SingleX509KeyManager(String alias, PrivateKey pk, Certificate[] certs) {
+		public SingleX509KeyManager(String alias, PrivateKey pk,
+				Certificate[] certs) {
 			this.alias = alias;
 			this.pk = pk;
 			this.certs = copy(certs);
 		}
 
-		public SingleX509KeyManager(KeyStore ks, char[] password, String alias)
-				throws UnrecoverableKeyException, NoSuchAlgorithmException, KeyStoreException {
+		public SingleX509KeyManager(String alias, KeyStore keystore,
+				char[] keyPass) throws UnrecoverableKeyException,
+				KeyStoreException, NoSuchAlgorithmException {
 			this.alias = alias;
-			this.pk = (PrivateKey) ks.getKey(alias, password);
-			this.certs = copy(ks.getCertificateChain(alias));
+			this.pk = (PrivateKey) keystore.getKey(alias, keyPass);
+			this.certs = copy(keystore.getCertificateChain(alias));
 		}
 
 		@Override
-		public String chooseEngineClientAlias(String[] paramArrayOfString, Principal[] paramArrayOfPrincipal,
-				SSLEngine paramSSLEngine) {
+		public String chooseEngineClientAlias(String[] paramArrayOfString,
+				Principal[] paramArrayOfPrincipal, SSLEngine paramSSLEngine) {
 			return alias;
 		}
 
 		@Override
-		public String chooseEngineServerAlias(String paramString, Principal[] paramArrayOfPrincipal,
-				SSLEngine paramSSLEngine) {
+		public String chooseEngineServerAlias(String paramString,
+				Principal[] paramArrayOfPrincipal, SSLEngine paramSSLEngine) {
 			return alias;
 		}
 
-		public String chooseClientAlias(String[] keyType, Principal[] issuers, Socket socket) {
+		public String chooseClientAlias(String[] keyType, Principal[] issuers,
+				Socket socket) {
 			return alias;
 		}
 
-		public String chooseServerAlias(String keyType, Principal[] issuers, Socket socket) {
+		public String chooseServerAlias(String keyType, Principal[] issuers,
+				Socket socket) {
 			return alias;
 		}
 
@@ -368,75 +428,81 @@ public class Main {
 	}
 
 	public static void main(String[] args) throws Exception {
-		if (args.length != 1 && args.length != 4) {
-			System.out.println("Usage: java -jar apostille.jar host:443");
-			System.out.println("Usage: java -jar apostille.jar src.jks dst.jks <keystore_password> <key_password>");
+		if (args.length < 1 || args.length > 4) {
+			System.out
+					.println("Usage: java -jar apostille.jar <src> [dst.jks [<keystore_password> [<key_password>]]]");
+			System.out.println();
+			System.out
+					.println("\tWhere <src> can be a file containing a certificate chain in PEM format");
+			System.out
+					.println("\tor a hostname:port to connect to, to obtain the certificate chain");
+			System.out.println();
+			System.out
+					.println("You can optionally provide a keystore to save intermediate private keys into");
+			System.out
+					.println("which can be used on a later run with a different certificate to maintain a");
+			System.out.println("consistent certificate hierarchy.");
+			System.out
+					.println("If the keystore password or key password are not provided, they will default to 'password'");
 			System.exit(0);
 		}
 		File src = new File(args[0]);
 		File dst = args.length > 1 ? new File(args[1]) : null;
 		char[] ksp = (args.length > 2 ? args[2] : "password").toCharArray();
 		char[] kp = (args.length > 3 ? args[3] : "password").toCharArray();
-		KeyStore srcKs = KeyStore.getInstance(KeyStore.getDefaultType());
-		KeyStore dstKs = KeyStore.getInstance(KeyStore.getDefaultType());
+		KeyStore keystore = KeyStore.getInstance(KeyStore.getDefaultType());
 		if (dst != null && dst.exists()) {
-			dstKs.load(new FileInputStream(dst), ksp);
-			Enumeration<String> aliases = dstKs.aliases();
-			System.err.println("Provided keystore has the following aliases:");
+			keystore.load(new FileInputStream(dst), ksp);
+			Enumeration<String> aliases = keystore.aliases();
+			System.err
+					.println("Provided destination keystore already has the following aliases:");
 			while (aliases.hasMoreElements()) {
 				String alias = aliases.nextElement();
 				System.err.println("Alias: " + alias);
 			}
 		} else {
-			dstKs.load(null, ksp);
+			keystore.load(null, ksp);
 		}
+
+		Main main = new Main(keystore, kp);
 
 		try (Writer out = new OutputStreamWriter(System.out)) {
 			if (!src.exists()) {
 				int c = args[0].indexOf(':');
 				if (c > 0) {
-					srcKs.load(null, ksp);
-
 					String host = args[0].substring(0, c);
 					int port = Integer.parseInt(args[0].substring(c + 1));
 
-					X509Certificate[] certs = certsFromServer(host, port);
-					String alias = getCN(certs[0].getSubjectX500Principal());
-					X509KeyManager km = cloneCertificates(dstKs, alias, certs, kp);
+					List<X509Certificate> certs = certsFromServer(host, port);
+					String alias = getDN(certs.get(0).getSubjectX500Principal());
+					X509KeyManager km = main.cloneCertificates(alias, certs);
 
 					outputKeyAndCertificate(alias, km, out);
 				} else {
-					System.err.println("Keystore " + src + " not found, and it doesn't look like a host:port");
+					System.err
+							.println("Certificate file "
+									+ src
+									+ " not found, and it doesn't look like a host:port");
 				}
 			} else {
-				srcKs.load(new FileInputStream(src), ksp);
-				Enumeration<String> aliases = srcKs.aliases();
-				while (aliases.hasMoreElements()) {
-					String alias = aliases.nextElement();
-					System.err.println("Copying " + alias);
-					X509Certificate[] certs = copy(srcKs.getCertificateChain(alias));
-					if (certs == null) {
-						Certificate cert = srcKs.getCertificate(alias);
-						if (cert != null) {
-							certs = new X509Certificate[] { (X509Certificate) cert };
-						} else {
-							throw new KeyStoreException("Can't get certificate chain for '" + alias + "'");
-						}
-					}
-					X509KeyManager km = cloneCertificates(dstKs, alias, certs, kp);
-					certs = km.getCertificateChain(alias);
-					outputKeyAndCertificate(alias, km, out);
-				}
+				List<X509Certificate> certs = certsFromStream(new FileInputStream(
+						src));
+				String alias = getDN(certs.get(0).getSubjectX500Principal());
+				X509KeyManager km = main.cloneCertificates(alias, certs);
+
+				outputKeyAndCertificate(alias, km, out);
 			}
 		}
 
-		Enumeration<String> aliases = dstKs.aliases();
+		Enumeration<String> aliases = keystore.aliases();
 		if (dst != null && aliases.hasMoreElements()) {
-			dstKs.store(new FileOutputStream(dst), ksp);
-			System.err.println("Provided keystore now has the following aliases:");
+			keystore.store(new FileOutputStream(dst), ksp);
+			System.err
+					.println("Provided keystore now has the following aliases:");
 			while (aliases.hasMoreElements()) {
 				String alias = aliases.nextElement();
-				System.err.println("Alias: " + alias + ", added " + dstKs.getCreationDate(alias));
+				System.err.println("Alias: " + alias + ", added "
+						+ keystore.getCreationDate(alias));
 			}
 
 		}
