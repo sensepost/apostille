@@ -5,7 +5,7 @@
   <artifactId>apostille</artifactId>
   <packaging>jar</packaging>
   <url>http://maven.apache.org</url>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0</version>
   <name>apostille</name>
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
@@ -14,6 +14,34 @@
     <maven.compiler.testTarget>1.8</maven.compiler.testTarget>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
+  <profiles>
+   <profile>
+      <id>releases</id>
+      <build>
+         <plugins>
+            <plugin>
+               <groupId>org.sonatype.plugins</groupId>
+               <artifactId>nexus-staging-maven-plugin</artifactId>
+               <version>1.5.1</version>
+               <executions>
+                  <execution>
+                     <id>default-deploy</id>
+                     <phase>deploy</phase>
+                     <goals>
+                        <goal>deploy</goal>
+                     </goals>
+                  </execution>
+               </executions>
+			   <!--               <configuration>
+                  <serverId>nexus-releases</serverId>
+                  <nexusUrl>http://localhost:8081/nexus/</nexusUrl>
+                  <skipStaging>true</skipStaging>
+			   </configuration> -->
+            </plugin>
+         </plugins>
+      </build>
+   </profile>
+</profiles>
   <dependencies>
     <dependency>
       <groupId>org.bouncycastle</groupId>
@@ -32,6 +60,12 @@
       <version>4.12</version>
     </dependency>
   </dependencies>
+  <scm>
+    <connection>scm:git:https://github.com/SensePost/Apostille.git</connection>
+    <url>http://github.com/SensePost/Apostille</url>
+    <developerConnection>scm:git:git@github.com:SensePost/Apostille.git</developerConnection>
+    <tag>v1.0</tag>
+  </scm>
   <build>
     <plugins>
       <plugin>
@@ -43,7 +77,7 @@
             <manifest>
               <addClasspath>true</addClasspath>
               <mainClass>net.za.dawes.apostille.Main</mainClass>
-              <classpathPrefix/>
+              <classpathPrefix />
             </manifest>
           </archive>
         </configuration>
@@ -67,6 +101,16 @@
           </execution>
         </executions>
       </plugin>
+	  <plugin>
+   <groupId>org.apache.maven.plugins</groupId>
+   <artifactId>maven-release-plugin</artifactId>
+   <version>2.4.2</version>
+   <configuration>
+      <tagNameFormat>v@{project.version}</tagNameFormat>
+      <autoVersionSubmodules>true</autoVersionSubmodules>
+      <releaseProfiles>releases</releaseProfiles>
+   </configuration>
+</plugin>
     </plugins>
   </build>
 </project>
