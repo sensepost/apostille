@@ -4,8 +4,8 @@
   <groupId>net.za.dawes</groupId>
   <artifactId>apostille</artifactId>
   <packaging>jar</packaging>
-  <url>http://maven.apache.org</url>
-  <version>1.0</version>
+  <url>https://github.com/RoganDawes/Apostille</url>
+  <version>1.2-SNAPSHOT</version>
   <name>apostille</name>
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
@@ -14,34 +14,87 @@
     <maven.compiler.testTarget>1.8</maven.compiler.testTarget>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
+  <distributionManagement>
+    <snapshotRepository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    </snapshotRepository>
+    <repository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+  </distributionManagement>
   <profiles>
-   <profile>
+    <profile>
       <id>releases</id>
       <build>
-         <plugins>
-            <plugin>
-               <groupId>org.sonatype.plugins</groupId>
-               <artifactId>nexus-staging-maven-plugin</artifactId>
-               <version>1.5.1</version>
-               <executions>
-                  <execution>
-                     <id>default-deploy</id>
-                     <phase>deploy</phase>
-                     <goals>
-                        <goal>deploy</goal>
-                     </goals>
-                  </execution>
-               </executions>
-			   <!--               <configuration>
-                  <serverId>nexus-releases</serverId>
-                  <nexusUrl>http://localhost:8081/nexus/</nexusUrl>
-                  <skipStaging>true</skipStaging>
-			   </configuration> -->
-            </plugin>
-         </plugins>
+        <plugins>
+          <plugin>
+            <groupId>org.sonatype.plugins</groupId>
+            <artifactId>nexus-staging-maven-plugin</artifactId>
+            <version>1.6.7</version>
+            <extensions>true</extensions>
+            <configuration>
+              <serverId>ossrh</serverId>
+              <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+              <autoReleaseAfterClose>false</autoReleaseAfterClose>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>2.2.1</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>2.9.1</version>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>1.5</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-release-plugin</artifactId>
+            <version>2.5.3</version>
+            <configuration>
+              <autoVersionSubmodules>true</autoVersionSubmodules>
+              <useReleaseProfile>false</useReleaseProfile>
+              <releaseProfiles>release</releaseProfiles>
+              <goals>deploy</goals>
+            </configuration>
+          </plugin>
+        </plugins>
       </build>
-   </profile>
-</profiles>
+    </profile>
+  </profiles>
   <dependencies>
     <dependency>
       <groupId>org.bouncycastle</groupId>
@@ -64,7 +117,7 @@
     <connection>scm:git:https://github.com/SensePost/Apostille.git</connection>
     <url>http://github.com/SensePost/Apostille</url>
     <developerConnection>scm:git:git@github.com:SensePost/Apostille.git</developerConnection>
-    <tag>v1.0</tag>
+    <tag>HEAD</tag>
   </scm>
   <build>
     <plugins>
@@ -77,7 +130,7 @@
             <manifest>
               <addClasspath>true</addClasspath>
               <mainClass>net.za.dawes.apostille.Main</mainClass>
-              <classpathPrefix />
+              <classpathPrefix/>
             </manifest>
           </archive>
         </configuration>
@@ -101,16 +154,16 @@
           </execution>
         </executions>
       </plugin>
-	  <plugin>
-   <groupId>org.apache.maven.plugins</groupId>
-   <artifactId>maven-release-plugin</artifactId>
-   <version>2.4.2</version>
-   <configuration>
-      <tagNameFormat>v@{project.version}</tagNameFormat>
-      <autoVersionSubmodules>true</autoVersionSubmodules>
-      <releaseProfiles>releases</releaseProfiles>
-   </configuration>
-</plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>2.4.2</version>
+        <configuration>
+          <tagNameFormat>v@{project.version}</tagNameFormat>
+          <autoVersionSubmodules>true</autoVersionSubmodules>
+          <releaseProfiles>releases</releaseProfiles>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 </project>
