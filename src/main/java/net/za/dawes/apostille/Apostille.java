@@ -70,8 +70,8 @@ public class Apostille {
 
     /**
      * Returns the X509Certificate of the cloned Certificate Authority that anchors the provided path
-     * @param path
-     * @return
+     * @param path the certificate path
+     * @return the cloned certificate
      * @throws KeyStoreException
      * @throws NoSuchAlgorithmException 
      */
@@ -90,8 +90,8 @@ public class Apostille {
     /**
      * Converts an X500Principal to a String, according to RFC1779
      * 
-     * @param principal
-     * @return
+     * @param principal the principal to convert
+     * @return a RFC1779 formatted string
      */
     public String getDistinguishedName(X500Principal principal) {
         return principal.getName(X500Principal.RFC1779);
