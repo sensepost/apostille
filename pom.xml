@@ -91,16 +91,24 @@
             <artifactId>maven-release-plugin</artifactId>
             <version>2.5.3</version>
             <configuration>
+              <providerImplementations>
+                <git>jgit</git>
+              </providerImplementations>
+              <useReleaseProfile>false</useReleaseProfile>
               <autoVersionSubmodules>true</autoVersionSubmodules>
               <allowTimestampedSnapshots>false</allowTimestampedSnapshots>
-              <useReleaseProfile>false</useReleaseProfile>
               <releaseProfiles>release</releaseProfiles>
               <goals>deploy</goals>
             </configuration>
             <dependencies>
               <dependency>
                 <groupId>org.apache.maven.scm</groupId>
-                <artifactId>maven-scm-provider-gitexe</artifactId>
+                <artifactId>maven-scm-api</artifactId>
+                <version>1.9.4</version>
+              </dependency>
+              <dependency>
+                <groupId>org.apache.maven.scm</groupId>
+                <artifactId>maven-scm-provider-jgit</artifactId>
                 <version>1.11.2</version>
               </dependency>
             </dependencies>
