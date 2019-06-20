@@ -1,12 +1,18 @@
 <?xml version="1.0"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+  <name>apostille</name>
   <groupId>net.za.dawes</groupId>
   <artifactId>apostille</artifactId>
   <packaging>jar</packaging>
-  <url>https://github.com/RoganDawes/Apostille</url>
+  <url>https://github.com/SensePost/Apostille</url>
   <version>1.2-SNAPSHOT</version>
-  <name>apostille</name>
+  <scm>
+    <connection>scm:git:https://github.com/SensePost/Apostille.git</connection>
+    <url>http://github.com/SensePost/Apostille</url>
+    <developerConnection>scm:git:git@github.com:SensePost/Apostille.git</developerConnection>
+    <tag>HEAD</tag>
+  </scm>
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
@@ -32,7 +38,7 @@
           <plugin>
             <groupId>org.sonatype.plugins</groupId>
             <artifactId>nexus-staging-maven-plugin</artifactId>
-            <version>1.6.7</version>
+            <version>1.6.8</version>
             <extensions>true</extensions>
             <configuration>
               <serverId>ossrh</serverId>
@@ -43,7 +49,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-source-plugin</artifactId>
-            <version>2.2.1</version>
+            <version>3.1.0</version>
             <executions>
               <execution>
                 <id>attach-sources</id>
@@ -56,7 +62,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-javadoc-plugin</artifactId>
-            <version>2.9.1</version>
+            <version>3.1.0</version>
             <executions>
               <execution>
                 <id>attach-javadocs</id>
@@ -69,7 +75,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-gpg-plugin</artifactId>
-            <version>1.5</version>
+            <version>1.6</version>
             <executions>
               <execution>
                 <id>sign-artifacts</id>
@@ -113,12 +119,6 @@
       <version>4.12</version>
     </dependency>
   </dependencies>
-  <scm>
-    <connection>scm:git:https://github.com/SensePost/Apostille.git</connection>
-    <url>http://github.com/SensePost/Apostille</url>
-    <developerConnection>scm:git:git@github.com:SensePost/Apostille.git</developerConnection>
-    <tag>HEAD</tag>
-  </scm>
   <build>
     <plugins>
       <plugin>
