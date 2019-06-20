@@ -2,16 +2,33 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <name>apostille</name>
+  <description>Apostille provides a way to &quot;clone&quot; a series of X509Certificates, as presented by a TLS webserver or similar. This allows for a more plausible man in the middle attack, if certificate validation is not properly performed.</description>
+  <licenses>
+    <license>
+      <name>Creative Commons Attribution-Non Commercial-ShareAlike 4.0 International License</name>
+      <url>http://creativecommons.org/licenses/by-nc-sa/4.0/deed.en_US</url>
+    </license>
+  </licenses>
+  <inceptionYear>2017</inceptionYear>
+  <developers>
+    <developer>
+      <id>RoganDawes</id>
+      <name>Rogan Dawes</name>
+      <email>rogan@dawes.za.net</email>
+      <organization>SensePost</organization>
+      <organizationUrl>https://sensepost.com</organizationUrl>
+    </developer>
+  </developers>
   <groupId>net.za.dawes</groupId>
   <artifactId>apostille</artifactId>
   <packaging>jar</packaging>
   <url>https://github.com/SensePost/Apostille</url>
-  <version>1.4-SNAPSHOT</version>
+  <version>1.1</version>
   <scm>
     <url>http://github.com/SensePost/Apostille</url>
     <connection>scm:git:https://github.com/SensePost/Apostille.git</connection>
     <developerConnection>scm:git:git@github.com:SensePost/Apostille.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>v1.1</tag>
   </scm>
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
@@ -91,21 +108,23 @@
             <artifactId>maven-release-plugin</artifactId>
             <version>2.5.3</version>
             <configuration>
-              <providerImplementations>
-                <git>jgit</git>
-              </providerImplementations>
               <useReleaseProfile>false</useReleaseProfile>
               <autoVersionSubmodules>true</autoVersionSubmodules>
               <allowTimestampedSnapshots>false</allowTimestampedSnapshots>
               <releaseProfiles>release</releaseProfiles>
               <goals>deploy</goals>
             </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-scm-plugin</artifactId>
+            <version>1.11.2</version>
+            <configuration>
+              <providerImplementations>
+                <git>jgit</git>
+              </providerImplementations>
+            </configuration>
             <dependencies>
-              <dependency>
-                <groupId>org.apache.maven.scm</groupId>
-                <artifactId>maven-scm-api</artifactId>
-                <version>1.9.4</version>
-              </dependency>
               <dependency>
                 <groupId>org.apache.maven.scm</groupId>
                 <artifactId>maven-scm-provider-jgit</artifactId>
