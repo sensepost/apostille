@@ -19,8 +19,10 @@ import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
 
@@ -86,6 +88,9 @@ public class ApostilleTest {
         TrustAnchor anchor = new TrustAnchor(ca, null);
         PKIXParameters params = new PKIXParameters(Collections.singleton(anchor));
         params.setRevocationEnabled(false);
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(2019, 6-1, 1);
+        params.setDate(calendar.getTime());
         CertPathValidator cpv = CertPathValidator.getInstance("PKIX");
         cpv.validate(cp, params);
     }
