@@ -310,16 +310,20 @@ public class Apostille {
     private Set<Extension> getExtensions(X509Certificate cert) throws AnnotatedException, IOException {
         Set<Extension> extensions = new LinkedHashSet<>();
         Set<String> criticalExtensionOids = cert.getCriticalExtensionOIDs();
-        for (String oid : criticalExtensionOids) {
-            ASN1Primitive ap = getExtensionValue(cert, oid);
-            Extension extension = new Extension(new ASN1ObjectIdentifier(oid), true, ap.getEncoded());
-            extensions.add(extension);
+        if (criticalExtensionOids != null) {
+            for (String oid : criticalExtensionOids) {
+                ASN1Primitive ap = getExtensionValue(cert, oid);
+                Extension extension = new Extension(new ASN1ObjectIdentifier(oid), true, ap.getEncoded());
+                extensions.add(extension);
+            }
         }
         Set<String> nonCriticalExtensionOids = cert.getNonCriticalExtensionOIDs();
-        for (String oid : nonCriticalExtensionOids) {
-            ASN1Primitive ap = getExtensionValue(cert, oid);
-            Extension extension = new Extension(new ASN1ObjectIdentifier(oid), false, ap.getEncoded());
-            extensions.add(extension);
+        if (nonCriticalExtensionOids != null) {
+            for (String oid : nonCriticalExtensionOids) {
+                ASN1Primitive ap = getExtensionValue(cert, oid);
+                Extension extension = new Extension(new ASN1ObjectIdentifier(oid), false, ap.getEncoded());
+                extensions.add(extension);
+            }
         }
         return extensions;
     }
