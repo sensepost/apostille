@@ -23,7 +23,7 @@
   <artifactId>apostille</artifactId>
   <packaging>jar</packaging>
   <url>https://github.com/SensePost/Apostille</url>
-  <version>1.1</version>
+  <version>1.2-SNAPSHOT</version>
   <scm>
     <url>http://github.com/SensePost/Apostille</url>
     <connection>scm:git:https://github.com/SensePost/Apostille.git</connection>
