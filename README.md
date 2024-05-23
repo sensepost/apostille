@@ -15,12 +15,16 @@ certificates, which would not otherwise be output or saved.
 
 Automatically generated "parents" of the chain will be named by their CN.
 
-Run it like:
+To run it, install [Maven](https://maven.apache.org/download.cgi), package it with
 
 	mvn package
+
+Then run either:
+
 	java -jar target/apostille-1.0-SNAPSHOT.jar example.com:443 > example.com.key+chain
 
 Or
+
 
 	java -jar target/apostille-1.0-SNAPSHOT.jar example.com:443 keystore.jks password password > example.com.key+chain
 
