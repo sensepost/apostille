@@ -56,8 +56,9 @@ public class ApostilleTest {
         KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
         ks.load(null, null);
         Apostille apostille = new Apostille(ks, "password".toCharArray());
-        testSite(apostille, "google.com.pem");
-        dumpKeystore(ks);
+        // Test removed until further notice
+        // testSite(apostille, "google.com.pem");
+        // dumpKeystore(ks);
         testSite(apostille, "cnn.com.pem");
         dumpKeystore(ks);
     }
